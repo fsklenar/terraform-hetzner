@@ -27,7 +27,7 @@ resource "hcloud_firewall" "default" {
     protocol  = "tcp"
     port      = "22"
     source_ips = [
-      "0.0.0.0/0"
+      "46.34.224.0/19"
     ]
   }
 
@@ -141,3 +141,9 @@ resource "hcloud_volume" "default" {
   automount = true
   format    = "ext4"
 }
+
+# #Write IPv4 into file - for ansible as host to use later
+# resource "local_file" "ip_file" {
+#   content  = "wg_server_host: ${hcloud_server.default.ipv4_address}"
+#   filename = "${path.module}/wg_hostname.yml"
+# }
