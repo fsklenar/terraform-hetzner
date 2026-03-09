@@ -6,6 +6,34 @@ terraform {
     }
   }
   required_version = ">= 1.14"
+
+  # Hetzner Object Storage is S3-compatible — use the S3 backend.
+  # Credentials are supplied via environment variables or a partial config file
+  # (terraform init -backend-config=backend.hcl) because backend blocks
+  # do not support Terraform variable references.
+  #
+  # Required env vars (or entries in backend.hcl):
+  #   AWS_ACCESS_KEY_ID     = <Hetzner Object Storage Access Key>
+  #   AWS_SECRET_ACCESS_KEY = <Hetzner Object Storage Secret Key>
+  #
+  # Create the bucket in the Hetzner Console before running terraform init.
+  backend "s3" {
+    bucket = "terraform-state-fsk-vm-hetzner"          # name of your Hetzner Object Storage bucket
+    key    = "terraform.tfstate"        # path to the state file inside the bucket
+
+    endpoints = {
+      s3 = "https://nbg1.your-objectstorage.com"
+    }
+
+    region = "nbg1"   # must be set but is not validated by Hetzner
+
+    # Hetzner Object Storage does not use AWS-style path/checksum features
+    skip_credentials_validation = true
+    skip_metadata_api_check     = true
+    skip_region_validation      = true
+    skip_requesting_account_id  = true
+    use_path_style              = true
+  }
 }
 
 provider "hcloud" {
