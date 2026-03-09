@@ -12,11 +12,13 @@ terraform {
   # (terraform init -backend-config=backend.hcl) because backend blocks
   # do not support Terraform variable references.
   #
-  # Required env vars (or entries in backend.hcl):
+  # Required env vars (or entries in .backend.hcl):
   #   AWS_ACCESS_KEY_ID     = <Hetzner Object Storage Access Key>
   #   AWS_SECRET_ACCESS_KEY = <Hetzner Object Storage Secret Key>
   #
   # Create the bucket in the Hetzner Console before running terraform init.
+  # terraform init -backend-config=.backend.hcl
+  # !!!add .backend.hcl into .gitignore file!!!
   backend "s3" {
     bucket = "terraform-state-fsk-vm-hetzner"          # name of your Hetzner Object Storage bucket
     key    = "terraform.tfstate"        # path to the state file inside the bucket
