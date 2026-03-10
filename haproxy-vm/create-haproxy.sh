@@ -25,6 +25,7 @@ cd $HOME/IaC/ansible/wireguard
 ansible-playbook -i inventory/hosts.yml wireguard.yml
 
 #HAProxy installation
+cd $HOME/IaC/ansible/cloud-vps
 ansible-playbook haproxy.yaml
 
 #K8s master update
