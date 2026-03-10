@@ -19,11 +19,13 @@ ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$proxydomain'
 cd $HOME/IaC/ansible/cloud-vps
 ssh-keyscan -H $proxydomain >> ~/.ssh/known_hosts
 ansible-playbook 01-initial-setup.yaml -u root
-ansible-playbook haproxy.yaml
 
 #Wireguard installation
 cd $HOME/IaC/ansible/wireguard
 ansible-playbook -i inventory/hosts.yml wireguard.yml
+
+#HAProxy installation
+ansible-playbook haproxy.yaml
 
 #K8s master update
 cd $HOME/IaC/ansible/salaserver/k8s-vms
