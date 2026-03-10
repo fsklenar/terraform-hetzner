@@ -15,7 +15,7 @@ read -e -p "Have you checked DNS record for $proxydomain?(Y/n) " choice
 
 
 #Ansible basic init
-ssh-keygen -f '/home/feri/.ssh/known_hosts' -R '$proxydomain'
+ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$proxydomain'
 cd $HOME/IaC/ansible/cloud-vps
 ssh-keyscan -H $proxydomain >> ~/.ssh/known_hosts
 ansible-playbook 01-initial-setup.yaml -u root
