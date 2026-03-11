@@ -42,8 +42,8 @@ cd $HOME/IaC/ansible/wireguard
 ansible-playbook -i inventory/hosts.yml wireguard.yml
 
 #Get SSL certificate from k8s cluster for the domain
-sslcert=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o jsonpath='{.data.tls\.crt}' | base64 --decode)
-sslkey=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o jsonpath='{.data.tls\.key}' | base64 --decode)
+sslcert=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o jsonpath='{.data.tls\.crt}')
+sslkey=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o jsonpath='{.data.tls\.key}')
 
 #HAProxy installation
 cd $HOME/IaC/ansible/cloud-vps
