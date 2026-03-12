@@ -15,7 +15,7 @@ dns_content=$(terraform output "server_ipv4")
 # sleep 30
 
 #Update DNS record
-cd $HOME/IaC/ansible/cloud-vps
+cd $HOME/IaC/ansible/cloud-vps/haproxy
 ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$proxydomain'
 ssh-keyscan -H $proxydomain >> ~/.ssh/known_hosts
 ansible-playbook haproxy-dns.yaml -e dns_content=$dns_content
@@ -31,7 +31,7 @@ sleep 90
 
 
 #Ansible basic init
-cd $HOME/IaC/ansible/cloud-vps
+cd $HOME/IaC/ansible/cloud-vps/common
 ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$proxydomain'
 ssh-keyscan -H $proxydomain >> ~/.ssh/known_hosts
 ansible-playbook 01-initial-setup.yaml -u root
@@ -46,8 +46,13 @@ sslcert=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o js
 sslkey=$(kubectl get secret -n kube-system proxy-linuxadmin-eu-tls-secret -o jsonpath='{.data.tls\.key}')
 
 #HAProxy installation
-cd $HOME/IaC/ansible/cloud-vps
+cd $HOME/IaC/ansible/cloud-vps/haproxy
 ansible-playbook haproxy.yaml  -e sslcert="$sslcert" -e sslkey="$sslkey"
+
+#HAProxy reboot
+cd $HOME/IaC/ansible/cloud-vps/haproxy
+ansible-playbook haproxy-reboot.yaml
+
 
 #K8s master update
 cd $HOME/IaC/ansible/salaserver/k8s-vms
