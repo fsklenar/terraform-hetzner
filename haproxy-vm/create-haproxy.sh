@@ -18,7 +18,8 @@ dns_content=$(terraform output "server_ipv4")
 cd $HOME/IaC/ansible/cloud-vps/haproxy
 ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$proxydomain'
 ssh-keyscan -H $proxydomain >> ~/.ssh/known_hosts
-ansible-playbook haproxy-dns.yaml -e dns_content=$dns_content
+cf_api_token=$(kubectl get secret -n cert-manager cloudflare-api-token -o jsonpath='{.data.cloudflare-api-token}')
+ansible-playbook haproxy-dns.yaml -e dns_content=$dns_content -e cf_api_token="$cf_api_token"
 
 #wait for DNS record refresh
 echo "Waiting for DNS record refresh..."
