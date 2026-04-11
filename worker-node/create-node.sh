@@ -38,6 +38,15 @@ ansible-playbook 01-initial-setup.yaml -u root -e "target_hosts=cloud-vps-node01
 cd $HOME/IaC/ansible/cloud-vps/
 ansible-playbook common/reboot.yaml -e "target_hosts=cloud-vps-node01"
 
+#docker install
+cd $HOME/IaC/ansible/cloud-vps/common/
+ansible-playbook docker-install.yaml -e "target_hosts=cloud-vps-node01"
+
+#install kubeadm
+cd $HOME/IaC/ansible/salaserver/k8s-vms/
+ansible-playbook 01-vm-initial-setup.yaml -e "target_hosts=cloud-vps-node01"
+ansible-playbook 02-vm-kube-config.yaml -e "target_hosts=cloud-vps-node01"
+
 #ssh tunnel - control plane to vm
 
 #connect to control-plane - add node
