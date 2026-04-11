@@ -25,7 +25,7 @@ ansible-playbook common/dns.yaml -e dns_content=$dns_content -e cf_api_token="$c
 
 #wait for DNS record refresh
 echo "Waiting for DNS record refresh..."
-#sleep 90
+sleep 90
 
 #Ansible basic init
 cd $HOME/IaC/ansible/cloud-vps/common
