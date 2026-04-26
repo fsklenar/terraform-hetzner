@@ -20,7 +20,7 @@ cd $HOME/IaC/ansible/cloud-vps/
 ssh-keygen -f '$HOME/.ssh/known_hosts' -R '$vmdomain'
 ssh-keyscan -H $vmdomain >> ~/.ssh/known_hosts
 cf_api_token=$(kubectl get secret -n cert-manager cloudflare-api-token -o jsonpath='{.data.cloudflare-api-token}')
-ansible-playbook common/dns.yaml -e "dns_content=${dns_content} cf_api_token=${cf_api_token} target_hosts=cloud-vps-node01  @vms/worker-node/vars.yaml"
+ansible-playbook common/dns.yaml -e "dns_content=${dns_content} cf_api_token=${cf_api_token} target_hosts=cloud-vps-node01" -e "@vms/worker-node/vars.yaml"
 
 #wait for DNS record refresh
 echo "Waiting for DNS record refresh..."

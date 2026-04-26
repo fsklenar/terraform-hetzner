@@ -83,7 +83,7 @@ data "hcloud_ssh_key" "existing" {
 resource "hcloud_ssh_key" "new" {
   count      = var.create_ssh_key ? 1 : 0
   name       = "${var.server_name}-key"
-  public_key = file(var.ssh_public_key_path)
+  public_key = chomp(file(var.ssh_public_key_path))
 }
 
 
