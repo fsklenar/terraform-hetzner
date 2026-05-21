@@ -1,0 +1,323 @@
+Here's a complete step-by-step guide for Kubespray on Hetzner, covering VM provisioning, Kubespray config, and the Hetzner-native integrations (CCM + CSI driver):
+
+---
+
+## Overview
+
+The full stack you need:
+
+```
+hcloud CLI / Terraform        → provision VMs
+Kubespray                     → install Kubernetes
+hcloud-cloud-controller-manager (CCM) → Hetzner LB, node IPs
+hcloud-csi-driver             → Hetzner Volumes (block storage, RWO)
++ NFS or Longhorn             → shared storage (RWX, if needed)
+```
+
+---
+
+## Step 1 — Prerequisites
+
+```bash
+# Local machine
+pip install ansible-core==2.16.x   # Kubespray requires >=2.16.4, <2.17
+pip install hcloud                 # Hetzner Python SDK
+brew install hcloud                # or: apt install hcloud / download from GitHub
+
+# Kubespray via Ansible Galaxy (recommended — no git clone needed)
+ansible-galaxy collection install kubernetes.core
+pip install kubernetes
+```
+
+Or clone kubespray directly (classic approach):
+
+```bash
+git clone https://github.com/kubernetes-sigs/kubespray.git
+cd kubespray
+git checkout release-2.25            # latest stable as of 2025
+pip install -r requirements.txt
+```
+
+---
+
+## Step 2 — Provision Hetzner VMs
+
+```bash
+# Authenticate
+hcloud context create my-k8s        # paste your API token
+
+# Upload your SSH key
+hcloud ssh-key create --name k8s-key --public-key-file ~/.ssh/id_ed25519.pub
+
+# Create a private network for cluster-internal traffic
+hcloud network create --name k8s-net --ip-range 10.0.0.0/16
+hcloud network add-subnet k8s-net --type cloud --network-zone eu-central --ip-range 10.0.1.0/24
+
+# Control plane (cx22 = 2 vCPU / 4 GB, minimum for k8s)
+hcloud server create \
+  --name k8s-cp-1 \
+  --type cx22 \
+  --image ubuntu-22.04 \
+  --ssh-key k8s-key \
+  --network k8s-net \
+  --location nbg1
+
+# Worker nodes (cx32 = 4 vCPU / 8 GB recommended)
+for i in 1 2 3; do
+  hcloud server create \
+    --name k8s-worker-$i \
+    --type cx32 \
+    --image ubuntu-22.04 \
+    --ssh-key k8s-key \
+    --network k8s-net \
+    --location nbg1
+done
+
+# Get IPs
+hcloud server list
+```
+
+> **Tip:** Use `--location nbg1` (Nuremberg), `hel1` (Helsinki), or `fsn1` (Falkenstein) — all in the EU and very cheap. Hetzner is ~5× cheaper than AWS/GCP for equivalent specs.
+
+---
+
+## Step 3 — Build Kubespray Inventory
+
+```bash
+cd kubespray
+cp -rfp inventory/sample inventory/hetzner
+
+# Set your IPs (public IPs from hcloud server list)
+declare -a IPS=(
+  1.2.3.10    # cp-1
+  1.2.3.11    # worker-1
+  1.2.3.12    # worker-2
+  1.2.3.13    # worker-3
+)
+
+CONFIG_FILE=inventory/hetzner/hosts.yaml \
+  python3 contrib/inventory_builder/inventory.py ${IPS[@]}
+```
+
+The generated `hosts.yaml` will look like this — **edit it** to assign roles properly:
+
+```yaml
+# inventory/hetzner/hosts.yaml
+all:
+  hosts:
+    k8s-cp-1:
+      ansible_host: 1.2.3.10
+      ip: 10.0.1.10           # private network IP
+      access_ip: 1.2.3.10
+    k8s-worker-1:
+      ansible_host: 1.2.3.11
+      ip: 10.0.1.11
+      access_ip: 1.2.3.11
+    k8s-worker-2:
+      ansible_host: 1.2.3.12
+      ip: 10.0.1.12
+      access_ip: 1.2.3.12
+    k8s-worker-3:
+      ansible_host: 1.2.3.13
+      ip: 10.0.1.13
+      access_ip: 1.2.3.13
+  children:
+    kube_control_plane:
+      hosts:
+        k8s-cp-1:
+    kube_node:
+      hosts:
+        k8s-worker-1:
+        k8s-worker-2:
+        k8s-worker-3:
+    etcd:
+      hosts:
+        k8s-cp-1:          # for HA: add 3 nodes here
+    k8s_cluster:
+      children:
+        kube_control_plane:
+        kube_node:
+    calico_rr:
+      hosts: {}
+```
+
+---
+
+## Step 4 — Configure group_vars for Hetzner
+
+**`inventory/hetzner/group_vars/all/all.yml`** — the critical Hetzner settings:
+
+```yaml
+# ── Cloud provider (CRITICAL for Hetzner) ────────────────────────────────────
+cloud_provider: external
+external_cloud_provider: hcloud
+
+# Your Hetzner API token (use ansible-vault in production!)
+external_hcloud_cloud:
+  hcloud_api_token: "YOUR_HETZNER_API_TOKEN"
+
+# ── Network ───────────────────────────────────────────────────────────────────
+# Use private network IPs for cluster communication
+kube_apiserver_bind_address: "0.0.0.0"
+
+# ── SSH ───────────────────────────────────────────────────────────────────────
+ansible_user: root                  # Hetzner Ubuntu images use root by default
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+```
+
+**`inventory/hetzner/group_vars/k8s_cluster/k8s-cluster.yml`**:
+
+```yaml
+# ── Kubernetes version ────────────────────────────────────────────────────────
+kube_version: v1.29.3
+
+# ── CNI ───────────────────────────────────────────────────────────────────────
+# Calico works best with Hetzner; Flannel also works
+kube_network_plugin: calico
+
+# Pod and service CIDRs (must not overlap with Hetzner private network 10.0.0.0/16)
+kube_pods_subnet: 192.168.0.0/16
+kube_service_addresses: 10.96.0.0/12
+
+# ── Container runtime ─────────────────────────────────────────────────────────
+container_manager: containerd
+
+# ── Hetzner cloud controller ──────────────────────────────────────────────────
+# IMPORTANT: required so kubelet doesn't wait for cloud provider node init
+node_labels:
+  node.cloudprovider.kubernetes.io/uninitialized: "true"
+
+# ── kubeconfig ────────────────────────────────────────────────────────────────
+# Download kubeconfig to your local machine after install
+kubeconfig_localhost: true
+kubectl_localhost: true
+
+# ── Optional addons ───────────────────────────────────────────────────────────
+helm_enabled: true
+metrics_server_enabled: true
+cert_manager_enabled: true
+ingress_nginx_enabled: true
+```
+
+**`inventory/hetzner/group_vars/k8s_cluster/addons.yml`**:
+
+```yaml
+# Disable in-tree cloud providers (Hetzner uses external CCM)
+cloud_provider: external
+```
+
+---
+
+## Step 5 — Run Kubespray
+
+```bash
+# Dry run first (check connectivity)
+ansible -i inventory/hetzner/hosts.yaml all -m ping
+
+# Full cluster install (~20–30 min on Hetzner cx22)
+ansible-playbook -i inventory/hetzner/hosts.yaml \
+  --become --become-user=root \
+  cluster.yml
+```
+
+When done, your kubeconfig will be at `inventory/hetzner/artifacts/admin.conf`.
+
+```bash
+export KUBECONFIG=$(pwd)/inventory/hetzner/artifacts/admin.conf
+kubectl get nodes
+```
+
+---
+
+## Step 6 — hcloud Cloud Controller Manager (CCM)
+
+Kubespray has built-in support for the hcloud external cloud controller manager, but you may need to deploy it manually depending on your version. The CCM enables Hetzner Load Balancers and correct node IP assignment:
+
+```bash
+# Create the API token secret
+kubectl -n kube-system create secret generic hcloud \
+  --from-literal=token=YOUR_HETZNER_API_TOKEN \
+  --from-literal=network=k8s-net           # your private network name
+
+# Deploy CCM
+kubectl apply -f https://github.com/hetznercloud/hcloud-cloud-controller-manager/releases/latest/download/ccm-networks.yaml
+```
+
+After CCM is running, nodes will get their correct Hetzner public IPs and you can use Hetzner Load Balancers via `Service type: LoadBalancer`.
+
+---
+
+## Step 7 — hcloud CSI Driver (Block Storage)
+
+The CCM and CSI driver share the same `hcloud` secret in `kube-system`, so the secret from Step 6 covers both:
+
+```bash
+# Deploy hcloud CSI driver
+kubectl apply -f https://raw.githubusercontent.com/hetznercloud/csi-driver/main/deploy/kubernetes/hcloud-csi.yml
+
+# Verify StorageClass was created
+kubectl get storageclass
+# NAME                PROVISIONER         RECLAIMPOLICY
+# hcloud-volumes      csi.hetzner.cloud   Delete
+```
+
+This gives you **Hetzner Volumes** (block storage, SSD, billed by GB) as PVCs — but **ReadWriteOnce only**. For shared/RWX storage, see below.
+
+---
+
+## Step 8 — Shared Storage Options on Hetzner
+
+Since Hetzner's CSI driver maps to their Cloud Volumes (block storage), RWX requires an additional layer:
+
+| Option | RWX | Complexity | Cost |
+|---|---|---|---|
+| NFS server VM | ✅ | Low | ~€4/mo for cx11 |
+| **Longhorn** | ✅ (via NFS) | Medium | Uses worker disk space |
+| Rook/Ceph | ✅ | High | Needs dedicated disks |
+
+**Longhorn (recommended for Hetzner RWX):**
+
+```bash
+helm repo add longhorn https://charts.longhorn.io
+helm repo update
+helm install longhorn longhorn/longhorn \
+  --namespace longhorn-system \
+  --create-namespace \
+  --set defaultSettings.defaultReplicaCount=2
+
+# Create RWX StorageClass
+kubectl apply -f - <<EOF
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: longhorn-rwx
+provisioner: driver.longhorn.io
+allowVolumeExpansion: true
+parameters:
+  numberOfReplicas: "2"
+  accessMode: "ReadWriteMany"  # Longhorn uses NFS internally for RWX
+EOF
+```
+
+---
+
+## Common Hetzner-specific gotchas
+
+**1. Node stuck `NotReady` after Kubespray** — this is the CCM uninitialized taint. Fix: deploy CCM (Step 6) and the taint clears automatically.
+
+**2. Pod CIDR overlap** — Hetzner private networks use `10.0.0.0/8` range. Set `kube_pods_subnet: 192.168.0.0/16` to avoid conflicts.
+
+**3. `cloud_provider: external` is required** — without it, kubelet uses in-tree cloud detection which doesn't exist for Hetzner. Nodes will never be marked as ready if this is misconfigured.
+
+**4. Hetzner Firewall** — open these ports in the Hetzner console or via `hcloud firewall`:
+
+```bash
+hcloud firewall create --name k8s-fw
+hcloud firewall add-rule k8s-fw --direction in --protocol tcp --port 22 --source-ips 0.0.0.0/0
+hcloud firewall add-rule k8s-fw --direction in --protocol tcp --port 6443 --source-ips 0.0.0.0/0
+hcloud firewall add-rule k8s-fw --direction in --protocol all --source-ips 10.0.0.0/16  # private network
+hcloud firewall add-rule k8s-fw --direction in --protocol tcp --port 30000-32767 --source-ips 0.0.0.0/0  # NodePorts
+```
+
+**5. Ansible version pinning** — Kubespray requires Ansible `>2.16.4` and `<2.17.0`, so pin it explicitly with `pip install ansible-core==2.16.9`.
