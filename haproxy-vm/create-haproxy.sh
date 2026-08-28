@@ -23,14 +23,30 @@ ssh-keyscan -H $vmdomain >> ~/.ssh/known_hosts
 cf_api_token=$(kubectl get secret -n cert-manager cloudflare-api-token -o jsonpath='{.data.cloudflare-api-token}')
 ansible-playbook common/dns.yaml -e dns_content=$dns_content -e cf_api_token="$cf_api_token" -e "@vms/haproxy/vars.yaml"
 
-#wait for DNS record refresh
+# Wait for DNS record refresh
 echo "Waiting for DNS record refresh..."
-sleep 90
 
-# #Prompt to check cloudflare DNS
-# echo "Current DNS record => "`host $proxydomain`
-# read -e -p "Have you checked DNS record for $proxydomain?(Y/n) " choice
-# [[ "$choice" == [Yy]* ]] && echo "Correct, continue with installation" || exit 1
+while true; do
+    current_ip="\"$(host "$vmdomain" | awk '/has address/ {print $NF; exit}')\""
+
+    echo "Current DNS: $current_ip | Expected: $dns_content"
+
+    if [[ "$current_ip" == "$dns_content" ]]; then
+        echo "DNS record refreshed successfully."
+        break
+    fi
+
+    sleep 10
+done
+
+# #wait for DNS record refresh
+# echo "Waiting for DNS record refresh..."
+# sleep 300
+#
+# # #Prompt to check cloudflare DNS
+# # echo "Current DNS record => "`host $proxydomain`
+# # read -e -p "Have you checked DNS record for $proxydomain?(Y/n) " choice
+# # [[ "$choice" == [Yy]* ]] && echo "Correct, continue with installation" || exit 1
 
 
 #Ansible basic init
