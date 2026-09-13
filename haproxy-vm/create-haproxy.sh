@@ -76,3 +76,10 @@ ansible-playbook common/reboot.yaml
 #K8s master update
 cd $HOME/IaC/ansible/salaserver/k8s-vms
 ansible-playbook 02-vm-kube-config.yaml -u root
+
+# #install cloudflared service
+# if [ ! -f /etc/systemd/system/cloudflared.service ]; then
+#   sudo cloudflared service install "${cloudflare_tunnel_token}"
+# else
+#   echo "cloudflared service already installed, skipping."
+# fi

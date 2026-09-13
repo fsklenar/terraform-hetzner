@@ -1,0 +1,10 @@
+##use -> export TF_VAR_hcloud_token="api_token"
+server_name         = "linuxadmin-vm"
+server_type         = "cx23"                  # 2 vCPU, 4GB RAM
+server_image        = "ubuntu-26.04"
+server_location     = "nbg1"                  # Nuremberg
+network_zone        = "eu-central"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+environment         = "dev"
+enable_floating_ip  = false
+enable_volume       = false
