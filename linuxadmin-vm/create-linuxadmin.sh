@@ -45,5 +45,7 @@ ssh-keyscan -H $vmdomain >> ~/.ssh/known_hosts
 ansible-playbook 01-initial-setup.yaml -u root
 
 #use podman
+cd $HOME/IaC/ansible/cloud-vps/${ansfolder}
+ansible-playbook linuxadmin.yaml
 
 
