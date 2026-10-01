@@ -18,10 +18,10 @@ output "server_ipv6" {
   value       = hcloud_server.default.ipv6_address
 }
 
-output "private_ip" {
-  description = "Private IP within the network"
-  value       = "10.0.1.10"
-}
+# output "private_ip" {
+#   description = "Private IP within the network"
+#   value       = "10.0.1.10"
+# }
 
 output "floating_ip" {
   description = "Floating IP address (if enabled)"

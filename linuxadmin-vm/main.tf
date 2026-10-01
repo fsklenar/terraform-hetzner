@@ -49,7 +49,7 @@ terraform {
   #   AWS_DEFAULT_REGION
   backend "s3" {
     bucket = "terraform-050752630539-state"
-    key    = "dev/hetzner-iluvatarvm/terraform.tfstate"
+    key    = "dev/hetzner-linuxadminvm/terraform.tfstate"
     region = "eu-central-1"   # update to your bucket's region if different
   }
 
@@ -75,8 +75,7 @@ resource "hcloud_firewall" "default" {
     protocol  = "tcp"
     port      = "22"
     source_ips = [
-      "91.226.113.60/32",
-      "37.139.8.159/32"
+      "91.226.113.60/32"
     ]
   }
 
@@ -94,7 +93,8 @@ resource "hcloud_firewall" "default" {
     protocol  = "tcp"
     port      = "80"
     source_ips = [
-      "0.0.0.0/0"
+      "0.0.0.0/0",
+      "::/0"
     ]
   }
 
@@ -103,7 +103,8 @@ resource "hcloud_firewall" "default" {
     protocol  = "tcp"
     port      = "443"
     source_ips = [
-      "0.0.0.0/0"
+      "0.0.0.0/0",
+      "::/0"
     ]
   }
 
@@ -120,7 +121,8 @@ resource "hcloud_firewall" "default" {
     direction = "in"
     protocol  = "icmp"
     source_ips = [
-      "0.0.0.0/0"
+      "0.0.0.0/0",
+      "::/0"
     ]
   }
 }
@@ -150,7 +152,7 @@ resource "hcloud_server" "default" {
 
   public_net {
     ipv4_enabled = true
-    ipv6_enabled = false
+    ipv6_enabled = true
   }
 
 #   network {
