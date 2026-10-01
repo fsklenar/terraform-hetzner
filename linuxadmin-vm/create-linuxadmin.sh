@@ -14,7 +14,7 @@ sleep 5
 dns_content=$(terraform output "server_ipv4")
 
 # #wait until server start
-sleep 30
+sleep 3
 
 #Update DNS record
 # cd $HOME/IaC/ansible/cloud-vps/
