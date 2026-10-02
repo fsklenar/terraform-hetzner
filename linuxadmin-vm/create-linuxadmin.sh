@@ -5,7 +5,7 @@ fi
 source .secret
 vmdomain="new.linuxadmin.sk"
 tffolder="linuxadmin-vm"
-ansfolder="vms/linuxadmin"
+ansfolder="vms/linuxadmin-vm"
 
 #Terraform
 cd $HOME/IaC/terraform/terraform-hetzner/${tffolder}/
