@@ -111,11 +111,39 @@ resource "hcloud_firewall" "default" {
   rule {
     direction = "in"
     protocol  = "tcp"
-    port      = "444"
+    port      = "993"
     source_ips = [
       "0.0.0.0/0"
     ]
   }
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "587"
+    source_ips = [
+      "0.0.0.0/0"
+    ]
+  }
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "25"
+    source_ips = [
+      "0.0.0.0/0"
+    ]
+  }
+
+  rule {
+    direction = "in"
+    protocol  = "tcp"
+    port      = "9443"
+    source_ips = [
+      "91.226.113.60/32"
+    ]
+  }
+
 
   rule {
     direction = "in"
@@ -125,6 +153,9 @@ resource "hcloud_firewall" "default" {
       "::/0"
     ]
   }
+
+
+
 }
 
 # # Private Network
