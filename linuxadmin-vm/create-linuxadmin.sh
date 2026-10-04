@@ -3,7 +3,7 @@ if [ -f ~/.bash_functions ]; then
   source ~/.bash_functions
 fi
 source .secret
-vmdomain="new.linuxadmin.sk"
+vmdomain="linuxadmin.sk"
 tffolder="linuxadmin-vm"
 ansfolder="vms/linuxadmin-vm"
 
