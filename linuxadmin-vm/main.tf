@@ -90,6 +90,15 @@ resource "hcloud_firewall" "default" {
 
   rule {
     direction = "in"
+    protocol  = "udp"
+    port      = "26000"
+    source_ips = [
+      "0.0.0.0/0"
+    ]
+  }
+
+  rule {
+    direction = "in"
     protocol  = "tcp"
     port      = "80"
     source_ips = [
